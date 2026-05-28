@@ -445,7 +445,7 @@ export default function App() {
         <div className="screen splash-screen">
           <div className="splash-bg" />
           <div className="splash-content">
-            <img src="/Era_Logo_White.png" alt="ERA Grizzard Real Estate" className="era-logo" />
+            <img src="/Era_Logo_White_Transparent.png" alt="ERA Grizzard Real Estate" className="era-logo" />
             <div className="logo-wrap">
               <div className="logo-beat">BEAT</div>
               <div className="logo-the">THE</div>
