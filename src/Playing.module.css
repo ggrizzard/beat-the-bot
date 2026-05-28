@@ -1,0 +1,106 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 20px;
+  text-align: center;
+  animation: fade-in 0.4s ease both;
+}
+
+.packLabel {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  margin-bottom: 32px;
+  opacity: 0.8;
+}
+
+.botAvatar {
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 54px;
+  border: 2px solid rgba(255,255,255,0.1);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.speaking {
+  border-color: var(--color) !important;
+  box-shadow: 0 0 32px color-mix(in srgb, var(--color) 30%, transparent);
+  animation: pulse-ring 1.6s ease-in-out infinite;
+}
+
+.botStatus {
+  margin-top: 22px;
+  color: rgba(255,255,255,0.85);
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+
+.objectionBox {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin: 18px 0 24px;
+  max-width: 440px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.85);
+  font-style: italic;
+  text-align: left;
+}
+
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 44px;
+  justify-content: center;
+  margin: 6px 0;
+}
+
+.waveBar {
+  width: 4px;
+  border-radius: 3px;
+  height: 4px;
+  transition: height 0.1s ease;
+  opacity: 0.85;
+}
+
+.doneBtn {
+  color: #0a0a0f;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 44px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 22px;
+  transition: all 0.2s;
+}
+.doneBtn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+
+.hint {
+  color: rgba(255,255,255,0.28);
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.dots {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  color: #00d4ff;
+  font-size: 22px;
+}
+.dots span { animation: blink 1s ease-in-out infinite; }
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
