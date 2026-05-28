@@ -25,8 +25,8 @@ export function stopSpeaking() {
 }
 
 export async function speakText(text, voiceId) {
-  const apiKey = window.__EL_KEY__ || "";
-  if (!apiKey) { console.warn("No ElevenLabs key found in window.__EL_KEY__"); return; }
+  const apiKey = import.meta.env.VITE_EL_KEY || window.__EL_KEY__ || "";
+  if (!apiKey) { console.warn("No ElevenLabs key found in VITE_EL_KEY or window.__EL_KEY__"); return; }
   try {
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
@@ -74,7 +74,7 @@ export async function speakText(text, voiceId) {
 }
 
 export async function transcribeAudio(audioBlob) {
-  const apiKey = window.__EL_KEY__ || "";
+  const apiKey = import.meta.env.VITE_EL_KEY || window.__EL_KEY__ || "";
 
   // Try ElevenLabs first
   if (apiKey) {

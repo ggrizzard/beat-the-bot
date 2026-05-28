@@ -105,7 +105,7 @@ export async function scoreResponse({
   playerResponse,
   packName,
 }) {
-  const apiKey = window.__BTB_KEY__ || "";
+  const apiKey = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
 
   const userPrompt = `
 GAME PACK: ${packName}
