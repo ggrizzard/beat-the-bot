@@ -92,7 +92,7 @@ export function getRexTiebreaker() {
 
 export function getRexPlayerIntro(players) {
   const names = players.map((p) => p.name);
-  return `LADIES AND GENTLEMEN — welcome to BEAT THE BOT, the only real estate training experience with this much drama and this little mercy! Tonight's competitors stepping into the arena are... ${names[0]}... ${names[1]}... and ${names[2]}! Three agents. Four rounds. One champion. May the sharpest tongue — and the warmest empathy — WIN! Let's get this show on the ROAD!`;
+  return `LADIES AND GENTLEMEN — welcome to BEAT THE BOT, the only real estate training experience with this much drama and this little mercy! Tonight's competitors stepping into the arena are... ${names[0]}... ${names[1]}... ${names[2]}... ${names[3]}... and ${names[4]}! Five agents. Four rounds. One champion. May the sharpest tongue — and the warmest empathy — WIN! Let's get this show on the ROAD!`;
 }
 
 // ── Scoring engine ───────────────────────────────────────────────────────────
