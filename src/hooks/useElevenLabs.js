@@ -24,7 +24,7 @@ export function stopSpeaking() {
   }
 }
 
-export async function speakText(text, voiceId) {
+export async function speakText(text, voiceId, speed = 1.15) {
   const apiKey = import.meta.env.VITE_EL_KEY || window.__EL_KEY__ || "";
   if (!apiKey) { console.warn("No ElevenLabs key found in VITE_EL_KEY or window.__EL_KEY__"); return; }
   try {
@@ -44,6 +44,7 @@ export async function speakText(text, voiceId) {
             similarity_boost: 0.8,
             style: 0.6,
             use_speaker_boost: true,
+            speed: speed,
           },
         }),
       }

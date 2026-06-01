@@ -134,11 +134,18 @@ export default function App() {
   const speak = useCallback(async (text, voice = "rex", packId = null) => {
     setIsSpeaking(true);
     const resolvedPackId = packId ?? selectedPackId;
-    let voiceId;
-    if (voice === "coach")          voiceId = COACH_VOICE_ID;
-    else if (voice === "character") voiceId = CHALLENGER_VOICE_IDS[resolvedPackId] || REX_VOICE_ID;
-    else                            voiceId = REX_VOICE_ID;
-    await speakText(text, voiceId);
+    let voiceId, speed;
+    if (voice === "coach") {
+      voiceId = COACH_VOICE_ID;
+      speed = 1.0;   // Coach is calm and measured
+    } else if (voice === "character") {
+      voiceId = CHALLENGER_VOICE_IDS[resolvedPackId] || REX_VOICE_ID;
+      speed = 1.0;   // Character speaks naturally
+    } else {
+      voiceId = REX_VOICE_ID;
+      speed = 1.15;  // Rex is theatrical and energetic — slightly faster
+    }
+    await speakText(text, voiceId, speed);
     setIsSpeaking(false);
   }, [selectedPackId]);
 
