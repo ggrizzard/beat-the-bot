@@ -15,12 +15,20 @@ export const CHALLENGER_VOICE_IDS = {
 
 // Module-level reference to the currently playing audio — allows external skip
 let _currentAudio = null;
+// Resolver for the in-flight speakText promise — lets skip advance the game flow
+let _currentResolve = null;
 
 export function stopSpeaking() {
   if (_currentAudio) {
     _currentAudio.pause();
     _currentAudio.currentTime = 0;
     _currentAudio = null;
+  }
+  // Resolve the pending promise so the awaiting game flow continues instead of hanging
+  if (_currentResolve) {
+    const resolve = _currentResolve;
+    _currentResolve = null;
+    resolve();
   }
 }
 
@@ -58,13 +66,16 @@ export async function speakText(text, voiceId, speed = 1.15) {
     _currentAudio = audio;
 
     return new Promise((resolve) => {
+      _currentResolve = resolve;
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
         _currentAudio = null;
+        _currentResolve = null;
         resolve();
       };
       audio.onerror = () => {
         _currentAudio = null;
+        _currentResolve = null;
         resolve(); // resolve so game flow never hangs
       };
       audio.play();
