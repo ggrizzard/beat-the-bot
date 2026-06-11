@@ -83,6 +83,7 @@ export async function transcribeAudio(audioBlob) {
       const formData = new FormData();
       // ElevenLabs expects 'file' not 'audio', and needs a proper filename with extension
       formData.append("file", audioBlob, "recording.webm");
+      formData.append("model_id", "scribe_v1");
 
       const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
         method: "POST",
