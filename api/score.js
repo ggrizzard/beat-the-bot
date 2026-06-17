@@ -105,7 +105,7 @@ Score ${playerName}'s response. Grade the three dimensions (objective/tone/langu
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.SCORING_MODEL || "claude-sonnet-4-20250514",
+        model: process.env.SCORING_MODEL || "claude-sonnet-4-6",
         max_tokens: 1000,
         system: REX_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
