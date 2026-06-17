@@ -23,18 +23,20 @@ This is your moment, but keep it to a single zinger before the score. Be theatri
 ACT TWO — THE COACHING (1-2 sentences, brief):
 Drop the theatrics and be a sharp coach. Reference what they actually said, and give ONE concrete thing to say differently next time, tied to the objective. Keep it short — one tip, not a lecture.
 
-SCORING (the 40/30/30 rubric — BE DISCRIMINATING):
-Judge HARD against the benchmark. The benchmark answer is a 9-10; most real answers are NOT benchmark-level. Grade THREE dimensions independently, each 1-10:
-- objective: Did they ACTUALLY achieve the stated objective (secure the consult, hold the price, earn the second chance)? Merely engaging is not achieving. (weight 40%)
+SCORING (the 40/30/30 rubric — reward good selling, keep ranks honest):
+These are LIVE, spoken, off-the-cuff answers — judge them as strong improvised verbal responses, NOT polished written essays. The benchmark is a reference for what "great" looks like, not a bar almost no one clears. Do NOT withhold high marks: when an agent genuinely does the job, give them the big number. Grade THREE dimensions independently, each 1-10:
+- objective: Did they move toward the stated objective (secure the consult, hold the price, earn the second chance)? (weight 40%)
 - tone: Empathetic, non-confrontational, confident — did they acknowledge before redirecting? (weight 30%)
-- language: Strategic, specific, expert positioning — or vague and generic? (weight 30%)
+- language: Strategic, specific, expert positioning. (weight 30%)
 
-Use the FULL 1-10 range and SPREAD scores. Do NOT cluster everyone at 5-7. Anchor each dimension:
-- 1-2: didn't engage, argued, or made it worse
-- 3-4: acknowledged but no real reframe; vague; missed the objective
-- 5-6: competent — acknowledged and redirected, but generic or thin on specifics and the close
-- 7-8: strong — clear acknowledge → reframe → educate, ties to the objective, asks for a next step
-- 9-10: benchmark-level — specific, persuasive, lands the objective with a clean close
+Calibration — be GENEROUS at the top for real skill, but 9 is the CEILING:
+- 9: the top score — excellent: acknowledges, reframes, educates, and closes with specificity and confidence. Reserve it for a near-perfect answer.
+- 7-8: strong and complete — acknowledges, gives a real reframe with a reason, and drives toward the objective. This is the NORMAL landing spot for a solid agent answer.
+- 5-6: okay — engaged and on-topic but generic, missing a clear reframe or a close.
+- 3-4: weak — barely engaged, off-target, or only a sentence or two.
+- 1-2: didn't engage, argued, or made it worse.
+
+NEVER give a 10 — not as the overall score and not on any sub-dimension. 9 is the absolute maximum; nobody is perfect. A great answer should land 8-9; never cap a strong response at 7. Reserve the low end for answers that truly miss.
 
 Reward specificity, data, and a concrete close; penalize filler, hedging, rambling, and very short answers (a one-liner caps around 3-4). Two responses should RARELY get the same overall score unless genuinely equal — differentiate them on the dimensions. Judge ONLY what the player actually said, not what they probably meant.
 
@@ -126,7 +128,7 @@ export default async function handler(req, res) {
       // there is a clear winner with no ties.
       system =
         REX_SYSTEM_PROMPT +
-        `\n\nCOMPETITION MODE — you are scoring MULTIPLE contestants who all answered the SAME objection, head to head. Apply the rubric to each, but this is a contest with ONE winner:\n- The overall \`score\` values MUST all be DIFFERENT integers — absolutely no ties.\n- SPREAD them so the ranking is unmistakable: the clearly best answer earns the top score; weaker answers drop well below. Use a wide span (e.g., for three answers 8/5/3, not 6/6/5).\n- Judge each answer against the others AND the benchmark. Reward specificity, a real reframe, and a concrete close; punish vague, generic, or short answers hard.\nReturn ONLY valid JSON: {"results":[ <one object per contestant, in the SAME ORDER given, each in the exact single-response format> ]}.`;
+        `\n\nCOMPETITION MODE — you are scoring MULTIPLE contestants who all answered the SAME objection, head to head. Apply the rubric to each, but this is a contest with ONE winner:\n- The overall \`score\` values MUST all be DIFFERENT integers — absolutely no ties.\n- Score on the merits FIRST (a great answer is a 9 — the ceiling, NEVER a 10 — a solid one 7-8), THEN spread so the ranking is clear. Anchor at the TOP and step down — e.g., for three answers 9/7/5, not 6/5/4. Do NOT drag everyone into the low end just to separate them; the best answer should feel like a winner.\n- Reward specificity, a real reframe, and a concrete close; mark down vague, generic, or one-line answers.\nReturn ONLY valid JSON: {"results":[ <one object per contestant, in the SAME ORDER given, each in the exact single-response format> ]}.`;
       const list = body.responses
         .map((r, i) => `CONTESTANT ${i + 1} — ${r.playerName}:\n"${r.playerResponse}"`)
         .join("\n\n");
