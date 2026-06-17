@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { GAME_PACKS } from "./data/gamePacks";
 import { speakText, stopSpeaking, transcribeAudio, REX_VOICE_ID, COACH_VOICE_ID, CHALLENGER_VOICE_IDS } from "./hooks/useElevenLabs";
-import { scoreResponse, scoreRound, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro } from "./hooks/useScoring";
+import { scoreResponse, scoreRound, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro, getRexGradingFiller } from "./hooks/useScoring";
 
 const API_KEY = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
 
@@ -434,27 +434,30 @@ export default function App() {
     setScoreData(null);
     setRoundScored(null);
     setPhase(PHASE.GRADING_INTRO);
-    await speak(getRexGradingIntro(), "rex");
 
-    // Comparative pass: score every answer together so the model spreads the
-    // scores and crowns a clear winner (no ties). gradeOne falls back to
-    // per-answer scoring if this fails.
+    // Kick the comparative scoring off immediately, then fill the wait with Rex
+    // banter (grading intro + a fun ERA Grizzard / Gus shout-out) so the
+    // deliberation never sits in silence. The scoring runs in the background
+    // while Rex talks, so the chatter overlaps the wait instead of adding to it.
+    // gradeOne falls back to per-answer scoring if the batch call fails.
     const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
     const round = pack.rounds[selectedRoundIndex];
-    let batch = null;
-    try {
-      batch = await scoreRound({
-        responses: responses.map((r) => ({ playerName: r.playerName, playerResponse: r.transcript })),
-        objection: round.objection,
-        persona: round.persona,
-        objective: round.objective,
-        benchmark: round.benchmark,
-        packName: pack.name,
-      });
-    } catch (e) {
+    const batchPromise = scoreRound({
+      responses: responses.map((r) => ({ playerName: r.playerName, playerResponse: r.transcript })),
+      objection: round.objection,
+      persona: round.persona,
+      objective: round.objective,
+      benchmark: round.benchmark,
+      packName: pack.name,
+    }).catch((e) => {
       console.error("Comparative scoring failed; falling back to per-answer:", e);
-      batch = null;
-    }
+      return null;
+    });
+
+    await speak(getRexGradingIntro(), "rex");
+    await speak(getRexGradingFiller(), "rex");
+
+    const batch = await batchPromise;
     setRoundScored(batch);
     await gradeOne(0, responses, batch);
   };
@@ -500,9 +503,10 @@ export default function App() {
       return next;
     });
 
-    // Rex roasts + reveals the score, then an ABBREVIATED coaching beat.
+    // Rex roasts + reveals the score, then reads the FULL coaching paragraph
+    // (just `coaching` — not the on-screen whatWorked/improve/tip bullets).
     await speak(`${result.roast} ${result.scoreLine}`, "rex");
-    await speak(abbreviateCoaching(result.coaching), "coach");
+    await speak(result.coaching, "coach");
   };
 
   // Operator taps to reveal the next agent's score (or wrap the round).
@@ -597,6 +601,7 @@ export default function App() {
   return (
     <div className="app">
       <style>{CSS}</style>
+
 
       {/* Particles */}
       {particles.map((p) => (

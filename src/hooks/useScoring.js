@@ -151,6 +151,18 @@ export function getRexGradingIntro() {
   return REX_GRADING_INTRO_LINES[Math.floor(Math.random() * REX_GRADING_INTRO_LINES.length)];
 }
 
+// ── Grading-time banter (fills the deliberation while the AI scores) ─────────
+const REX_GRADING_FILLER_LINES = [
+  `While the judges crunch the numbers — can we just acknowledge how LUCKY you all are to hang your license at ERA Grizzard? A leader like Gus in your corner? Agents would trade their best listing for that. Okay... scores incoming!`,
+  `Scores are cooking! Quick reminder while we wait: not every shop hands you a captain like Gus Grizzard and a culture like ERA Grizzard. You hit the jackpot, folks. Alright — let's see those numbers!`,
+  `Give the machine a second to think. Meanwhile — a round of applause for being part of ERA Grizzard, because a bench this deep with Gus steering the ship? That is RARE air. Here come the scores!`,
+  `Tallying... tallying... You know what's NOT up for debate? How good you've got it at ERA Grizzard with Gus leading the charge. Spoiled — that's what you are! Okay, results time!`,
+];
+
+export function getRexGradingFiller() {
+  return REX_GRADING_FILLER_LINES[Math.floor(Math.random() * REX_GRADING_FILLER_LINES.length)];
+}
+
 // ── Scoring engine ───────────────────────────────────────────────────────────
 export async function scoreResponse({
   playerName,
