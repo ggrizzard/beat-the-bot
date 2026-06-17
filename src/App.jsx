@@ -1,9 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { GAME_PACKS } from "./data/gamePacks";
 import { speakText, stopSpeaking, transcribeAudio, REX_VOICE_ID, COACH_VOICE_ID, CHALLENGER_VOICE_IDS } from "./hooks/useElevenLabs";
-import { scoreResponse, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker } from "./hooks/useScoring";
+import { scoreResponse, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro } from "./hooks/useScoring";
 
 const API_KEY = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
+
+// ─── PLAYER COUNT ────────────────────────────────────────────────────────────
+// Number of competing agents. Set to 2 while building/testing; bump back to 5
+// (the full main-stage roster) once everything is finalized.
+const PLAYER_COUNT = 2;
+
+const makePlayers = (n) => Array.from({ length: n }, (_, i) => ({ id: i, name: "" }));
+const makeScores = (n) => Array.from({ length: n }, () => 0);
+
+// Speak only the first couple of sentences of a longer coaching block —
+// keeps the grading reveal moving (full coaching still shows on screen).
+function abbreviateCoaching(text, maxSentences = 2) {
+  if (!text) return "";
+  const parts = text.match(/[^.!?]+[.!?]+/g);
+  if (!parts) return text;
+  return parts.slice(0, maxSentences).join(" ").trim();
+}
 
 // ─── PHASE CONSTANTS ───────────────────────────────────────────────────────────
 const PHASE = {
@@ -11,10 +28,12 @@ const PHASE = {
   SOUND_CHECK: "sound_check",
   REGISTER: "register",
   CATEGORY_SELECT: "category_select",
+  ROULETTE: "roulette",
   REX_INTRO: "rex_intro",
   OBJECTION: "objection",
   PLAYER_HANDOFF: "player_handoff",
   PLAYER_RESPONSE: "player_response",
+  GRADING_INTRO: "grading_intro",
   SCORING: "scoring",
   SCORE_REVEAL: "score_reveal",
   ROUND_SUMMARY: "round_summary",
@@ -75,17 +94,58 @@ function PlayerCard({ player, score, isActive, isWinner, rank }) {
   );
 }
 
+// ─── OBJECTION ROULETTE REEL ────────────────────────────────────────────────
+// Slot-machine reel that spins the chosen pack's objections and decelerates onto
+// the already-selected round (targetIndex). Visual only — no logic depends on it.
+function RouletteReel({ pack, targetIndex, color }) {
+  const ITEM_H = 60;
+  const LOOPS = 6;
+  const rounds = pack.rounds;
+  const n = rounds.length;
+  const stripRef = useRef(null);
+  const strip = [];
+  for (let l = 0; l < LOOPS; l++) for (let i = 0; i < n; i++) strip.push(rounds[i]);
+  const safeTarget = Math.max(0, Math.min(targetIndex ?? 0, n - 1));
+  const k = (LOOPS - 1) * n + safeTarget;
+  const finalY = -((k - 1) * ITEM_H);
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(0px)";
+    el.style.filter = "blur(1.4px)";
+    void el.offsetHeight;
+    requestAnimationFrame(() => {
+      el.style.transition = "transform 3s cubic-bezier(0.12, 0.7, 0.16, 1)";
+      el.style.transform = `translateY(${finalY}px)`;
+    });
+    const t = setTimeout(() => {
+      if (stripRef.current) stripRef.current.style.filter = "none";
+    }, 2100);
+    return () => clearTimeout(t);
+  }, [finalY]);
+  return (
+    <div style={{ position: "relative", width: "100%", maxWidth: 460, margin: "1.5rem auto 0" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: ITEM_H, height: ITEM_H, border: `2px solid ${color}`, borderRadius: 8, background: "rgba(255,255,255,0.05)", pointerEvents: "none", zIndex: 2 }} />
+      <div style={{ height: ITEM_H * 3, overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(11,50,121,0.22)" }}>
+        <div ref={stripRef} style={{ willChange: "transform" }}>
+          {strip.map((r, idx) => (
+            <div key={idx} style={{ height: ITEM_H, boxSizing: "border-box", padding: "0 18px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+              <div style={{ color: color, fontSize: 11, opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.persona}</div>
+              <div style={{ color: "#f5f0e8", fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.short || r.objection}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [phase, setPhase] = useState(PHASE.SPLASH);
-  const [players, setPlayers] = useState([
-    { id: 0, name: "" },
-    { id: 1, name: "" },
-    { id: 2, name: "" },
-    { id: 3, name: "" },
-    { id: 4, name: "" },
-  ]);
-  const [scores, setScores] = useState([0, 0, 0, 0, 0]);
+  const [players, setPlayers] = useState(() => makePlayers(PLAYER_COUNT));
+  const [scores, setScores] = useState(() => makeScores(PLAYER_COUNT));
   const [roundHistory, setRoundHistory] = useState([]); // [{packId, roundId, results:[{playerId,score,roast,coaching}]}]
   const [currentRound, setCurrentRound] = useState(0); // 0-3
   const [selectedPackId, setSelectedPackId] = useState(null);
@@ -93,6 +153,8 @@ export default function App() {
   const [usedRounds, setUsedRounds] = useState(new Set());
   const [currentPlayerOrder, setCurrentPlayerOrder] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const [currentRoundResponses, setCurrentRoundResponses] = useState([]); // collected blind: [{playerId,playerName,transcript}]
+  const [gradingIndex, setGradingIndex] = useState(0); // which collected response is being graded/revealed
   const [currentRoundResults, setCurrentRoundResults] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -256,7 +318,7 @@ export default function App() {
   // Start game after registration
   const handleStartGame = async () => {
     if (players.some((p) => !p.name.trim())) {
-      setStatusMsg("All five players need a name!");
+      setStatusMsg(`All ${players.length} players need a name!`);
       return;
     }
     setPhase(PHASE.CATEGORY_SELECT);
@@ -279,19 +341,32 @@ export default function App() {
 
     setSelectedPackId(packId);
     setSelectedRoundIndex(pack.rounds.indexOf(round));
+    setCurrentRoundResponses([]);
     setCurrentRoundResults([]);
+    setGradingIndex(0);
     setCurrentPlayerIndex(0);
     setUsedRounds((prev) => new Set([...prev, round.id]));
 
+    // Rex announces the category first, THEN the roulette spins to land on the
+    // specific objection (visual only — the round is already chosen above).
     setPhase(PHASE.REX_INTRO);
     const introText = getRexPackIntro(packId);
     await speak(introText, "rex");
+
+    setPhase(PHASE.ROULETTE);
+    await new Promise((r) => setTimeout(r, 3300));
+
     setPhase(PHASE.OBJECTION);
     await speak(round.objection, "character", packId);
     setPhase(PHASE.PLAYER_RESPONSE);
   };
 
-  // Step 1 — stop recording, use live transcript immediately
+  // Step 1 — stop recording, then transcribe properly.
+  // The live Web Speech text shown while speaking is only a real-time preview —
+  // it has NO punctuation or capitalization. For the committed answer (shown on
+  // screen and sent to Rex for scoring) we always run ElevenLabs Scribe, which
+  // returns properly punctuated, capitalized text. We only fall back to the raw
+  // live preview if Scribe returns nothing usable.
   const handleStopRecording = async () => {
     const blob = await stopRecording();
     if (!blob) {
@@ -300,75 +375,113 @@ export default function App() {
     }
     setPendingBlob(blob);
 
-    // If Web Speech gave us a live transcript, use it immediately — no waiting
-    if (liveTranscript.trim().length > 0) {
-      setTranscript(liveTranscript.trim());
-      setStatusMsg("");
-      return;
-    }
-
-    // Fallback — send blob to ElevenLabs if live transcript is empty
     setIsTranscribing(true);
     setStatusMsg("Transcribing your response...");
     const text = await transcribeAudio(blob);
-    setTranscript(text || "[Nothing detected — try speaking louder or check mic]");
+    const cleaned = (text || "").trim();
+
+    if (cleaned && !cleaned.startsWith("[")) {
+      // Good punctuated transcript from Scribe
+      setTranscript(cleaned);
+    } else if (liveTranscript.trim().length > 0) {
+      // Last-resort fallback to the live preview if Scribe returned nothing
+      setTranscript(liveTranscript.trim());
+    } else {
+      setTranscript("[Nothing detected — try speaking louder or check mic]");
+    }
+
     setIsTranscribing(false);
     setStatusMsg("");
   };
 
-  // Step 2 — confirmed, now score it
-  const handleConfirmAndScore = async () => {
+  // Step 2 — confirmed. STORE the response blind (no scoring yet) so that
+  // every agent answers without hearing anyone else's feedback. Once all
+  // agents have recorded, we move into the grading phase.
+  const handleConfirmResponse = async () => {
     const text = transcript;
     if (!text) return;
     setPendingBlob(null);
 
-    const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
-    const round = pack.rounds[selectedRoundIndex];
     const player = currentPlayerOrder[currentPlayerIndex];
 
+    const updatedResponses = [
+      ...currentRoundResponses,
+      { playerId: player.id, playerName: player.name, transcript: text },
+    ];
+    setCurrentRoundResponses(updatedResponses);
+    setTranscript("");
+    setLiveTranscript("");
+
+    // More agents still to record this round?
+    if (currentPlayerIndex + 1 < currentPlayerOrder.length) {
+      setCurrentPlayerIndex((i) => i + 1);
+      setPhase(PHASE.PLAYER_HANDOFF);
+      // Quick, non-evaluative Rex quip — keeps the energy up without leaking
+      // anything about how the agent did (scores come later, blind).
+      await speak(getRexHandoffQuip(player.name), "rex");
+    } else {
+      // Everyone has answered — time to grade, one at a time.
+      await startGrading(updatedResponses);
+    }
+  };
+
+  // Kick off the grading phase once all responses are collected.
+  const startGrading = async (responses) => {
+    setCurrentRoundResults([]);
+    setGradingIndex(0);
+    setScoreData(null);
+    setPhase(PHASE.GRADING_INTRO);
+    await speak(getRexGradingIntro(), "rex");
+    await gradeOne(0, responses);
+  };
+
+  // Score + reveal a single stored response. Advancing to the next reveal is
+  // operator-controlled (handleRevealNext) so pacing stays in your hands.
+  const gradeOne = async (index, responses) => {
+    const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
+    const round = pack.rounds[selectedRoundIndex];
+    const resp = responses[index];
+
+    setGradingIndex(index);
+    setScoreData(null);
     setPhase(PHASE.SCORING);
-    setStatusMsg("Rex is deliberating...");
 
     const result = await scoreResponse({
-      playerName: player.name,
+      playerName: resp.playerName,
       objection: round.objection,
       persona: round.persona,
       objective: round.objective,
       benchmark: round.benchmark,
-      playerResponse: text,
+      playerResponse: resp.transcript,
       packName: pack.name,
     });
 
     setScoreData(result);
     setPhase(PHASE.SCORE_REVEAL);
 
-    // Rex roasts, Coach coaches
-    await speak(`${result.roast} ${result.scoreLine}`, "rex");
-    await speak(result.coaching, "coach");
-
-    // Update results
-    const updatedResults = [
-      ...currentRoundResults,
-      { playerId: player.id, playerName: player.name, score: result.score, roast: result.roast, coaching: result.coaching },
-    ];
-    setCurrentRoundResults(updatedResults);
-
-    // Update cumulative scores
+    // Record the scored result + cumulative score.
+    setCurrentRoundResults((prev) => [
+      ...prev,
+      { playerId: resp.playerId, playerName: resp.playerName, score: result.score, scoreLabel: result.scoreLabel, subscores: result.subscores, roast: result.roast, coaching: result.coaching, whatWorked: result.whatWorked, improve: result.improve, coachingTip: result.coachingTip },
+    ]);
     setScores((prev) => {
       const next = [...prev];
-      next[player.id] += result.score;
+      next[resp.playerId] += result.score;
       return next;
     });
 
-    // More players this round?
-    if (currentPlayerIndex + 1 < currentPlayerOrder.length) {
-      const nextPlayer = currentPlayerOrder[currentPlayerIndex + 1];
-      setCurrentPlayerIndex((i) => i + 1);
-      setTranscript("");
-      setLiveTranscript("");
-      setPhase(PHASE.PLAYER_HANDOFF);
+    // Rex roasts + reveals the score, then an ABBREVIATED coaching beat.
+    await speak(`${result.roast} ${result.scoreLine}`, "rex");
+    await speak(abbreviateCoaching(result.coaching), "coach");
+  };
+
+  // Operator taps to reveal the next agent's score (or wrap the round).
+  const handleRevealNext = async () => {
+    const next = gradingIndex + 1;
+    if (next < currentRoundResponses.length) {
+      await gradeOne(next, currentRoundResponses);
     } else {
-      await endRound(updatedResults);
+      await endRound(currentRoundResults);
     }
   };
 
@@ -398,16 +511,24 @@ export default function App() {
       setPhase(PHASE.GAME_OVER);
     } else {
       await speak(getRexRoundWinner(roundWinner.playerName, roundWinner.score), "rex");
-      // Next round order rotates
-      setCurrentPlayerOrder(getRotatedOrder(players, nextRound));
+      // Round winner earns the pick: they choose the next battlefield AND lead
+      // off the next round. Put the winner first; everyone else keeps their
+      // relative order behind them. (Ties go to whoever answered first.)
+      const winnerId = roundWinner.playerId;
+      const winnerFirstOrder = [
+        players.find((p) => p.id === winnerId),
+        ...players.filter((p) => p.id !== winnerId),
+      ];
+      setCurrentPlayerOrder(winnerFirstOrder);
       setCurrentPlayerIndex(0);
     }
   };
 
-  const handleHandoffReady = async () => {
-    setPhase(PHASE.OBJECTION);
-    const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
-    await speak(pack.rounds[selectedRoundIndex].objection, "character", selectedPackId);
+  const handleHandoffReady = () => {
+    // Cut off any in-progress Rex quip and go straight to recording. The
+    // objection stays visible on the response screen, so no need to re-read it.
+    stopSpeaking();
+    setIsSpeaking(false);
     setPhase(PHASE.PLAYER_RESPONSE);
   };
 
@@ -420,16 +541,15 @@ export default function App() {
 
   const handlePlayAgain = () => {
     setPhase(PHASE.SPLASH);
-    setPlayers([
-      { id: 0, name: "" }, { id: 1, name: "" }, { id: 2, name: "" },
-      { id: 3, name: "" }, { id: 4, name: "" },
-    ]);
-    setScores([0, 0, 0, 0, 0]);
+    setPlayers(makePlayers(PLAYER_COUNT));
+    setScores(makeScores(PLAYER_COUNT));
     setRoundHistory([]);
     setCurrentRound(0);
     setSelectedPackId(null);
     setSelectedRoundIndex(null);
     setUsedRounds(new Set());
+    setCurrentRoundResponses([]);
+    setGradingIndex(0);
     setCurrentRoundResults([]);
     setWinnerIndex(null);
     setScoreData(null);
@@ -440,6 +560,7 @@ export default function App() {
   const currentPack = GAME_PACKS.find((p) => p.id === selectedPackId);
   const currentRoundData = currentPack?.rounds[selectedRoundIndex];
   const activePlayer = currentPlayerOrder[currentPlayerIndex];
+  const revealPlayer = currentRoundResponses[gradingIndex]; // {playerId, playerName, transcript}
   const sortedPlayers = [...players].map((p, i) => ({ ...p, score: scores[i] })).sort((a, b) => b.score - a.score);
 
   // ── RENDER ──
@@ -585,7 +706,7 @@ export default function App() {
       {phase === PHASE.REGISTER && (
         <div className="screen register-screen">
           <h1 className="screen-title">WHO'S COMPETING TODAY?</h1>
-          <p className="screen-sub">Five agents. One winner. Zero mercy.</p>
+          <p className="screen-sub">{players.length} agents. One winner. Zero mercy.</p>
           <div className="player-inputs">
             {players.map((player, i) => (
               <div key={i} className="player-input-row">
@@ -622,7 +743,7 @@ export default function App() {
             ))}
           </div>
           <h2 className="screen-title">
-            {currentRound === 0 ? "PICK YOUR BATTLEFIELD" : `ROUND ${currentRound + 1} — ${players[currentPlayerOrder[0]?.id]?.name || ""}  PICKS`}
+            {currentRound === 0 ? "PICK YOUR BATTLEFIELD" : `🏆 ${players[currentPlayerOrder[0]?.id]?.name || ""} WON — PICK YOUR BATTLEFIELD`}
           </h2>
           <p className="screen-sub">Round {currentRound + 1} of 4</p>
           <div className="pack-grid">
@@ -643,6 +764,16 @@ export default function App() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── OBJECTION ROULETTE ── */}
+      {phase === PHASE.ROULETTE && currentPack && (
+        <div className="screen speaking-screen">
+          <div className="speaking-icon">🎰</div>
+          <div className="speaking-label">SPINNING THE OBJECTION...</div>
+          <div className="pack-badge" style={{ background: currentPack.color }}>{currentPack.emoji} {currentPack.name}</div>
+          <RouletteReel pack={currentPack} targetIndex={selectedRoundIndex} color={currentPack.color} />
         </div>
       )}
 
@@ -671,7 +802,7 @@ export default function App() {
           <div className="handoff-thanks">
             <div className="handoff-thanks-label">GREAT EFFORT</div>
             <div className="handoff-thanks-name">{currentPlayerOrder[currentPlayerIndex - 1]?.name || ""}!</div>
-            <div className="handoff-thanks-sub">Pass the mic and step aside — your score is locked in.</div>
+            <div className="handoff-thanks-sub">Pass the mic and step aside — your answer is locked in. Scores come after everyone's up.</div>
           </div>
 
           <div className="handoff-divider">
@@ -778,8 +909,8 @@ export default function App() {
                 <button className="btn-rerecord" onClick={handleReRecord}>
                   🔄 RE-RECORD
                 </button>
-                <button className="btn-submit" onClick={handleConfirmAndScore}>
-                  ✅ SUBMIT TO REX
+                <button className="btn-submit" onClick={handleConfirmResponse}>
+                  ✅ LOCK IN ANSWER
                 </button>
               </div>
             )}
@@ -789,23 +920,46 @@ export default function App() {
         </div>
       )}
 
+      {/* ── GRADING INTRO ── */}
+      {phase === PHASE.GRADING_INTRO && (
+        <div className="screen speaking-screen">
+          <div className="speaking-icon">⚖️</div>
+          <div className="speaking-label">ALL ANSWERS ARE IN — GRADING TIME</div>
+          <div className="grading-roster">
+            {currentRoundResponses.map((r) => (
+              <div key={r.playerId} className="grading-chip">
+                <div className="mini-avatar">{r.playerName.charAt(0).toUpperCase()}</div>
+                <div className="mini-name">{r.playerName}</div>
+                <div className="mini-check">🔒</div>
+              </div>
+            ))}
+          </div>
+          <div className="speaking-wave"><span /><span /><span /><span /><span /></div>
+          <button className="btn-skip" onClick={handleSkip}>⏭ SKIP</button>
+        </div>
+      )}
+
       {/* ── SCORING ── */}
       {phase === PHASE.SCORING && (
         <div className="screen scoring-screen">
           <div className="scoring-anim">
             <div className="scoring-icon">🎭</div>
             <div className="scoring-text">REX IS DELIBERATING...</div>
+            {revealPlayer && <div className="scoring-subject">Grading {revealPlayer.playerName}</div>}
             <div className="scoring-dots"><span /><span /><span /></div>
           </div>
         </div>
       )}
 
       {/* ── SCORE REVEAL ── */}
-      {phase === PHASE.SCORE_REVEAL && scoreData && activePlayer && (
+      {phase === PHASE.SCORE_REVEAL && scoreData && revealPlayer && (
         <div className="screen reveal-screen">
+          <div className="reveal-progress">
+            AGENT {gradingIndex + 1} OF {currentRoundResponses.length}
+          </div>
           <div className="reveal-player">
-            <div className="reveal-avatar">{activePlayer.name.charAt(0)}</div>
-            <div className="reveal-name">{activePlayer.name}</div>
+            <div className="reveal-avatar">{revealPlayer.playerName.charAt(0)}</div>
+            <div className="reveal-name">{revealPlayer.playerName}</div>
           </div>
 
           <div className="rex-says roast">
@@ -816,20 +970,57 @@ export default function App() {
           <div className="score-reveal-number">
             <div className="score-line">{scoreData.scoreLine}</div>
             <ScoreBar score={scoreData.score} animated />
+            {scoreData.scoreLabel && (
+              <div className="score-label-chip">{scoreData.scoreLabel}</div>
+            )}
           </div>
+
+          {scoreData.subscores && (
+            <div className="subscores">
+              <div className="subscore-row">
+                <span className="subscore-name">Objective <em>40%</em></span>
+                <ScoreBar score={scoreData.subscores.objective} />
+              </div>
+              <div className="subscore-row">
+                <span className="subscore-name">Tone <em>30%</em></span>
+                <ScoreBar score={scoreData.subscores.tone} />
+              </div>
+              <div className="subscore-row">
+                <span className="subscore-name">Strategic Language <em>30%</em></span>
+                <ScoreBar score={scoreData.subscores.language} />
+              </div>
+            </div>
+          )}
 
           <div className="rex-says coaching">
             <div className="rex-badge coaching-badge">💡 COACHING</div>
             <div className="rex-text">{scoreData.coaching}</div>
+            {(scoreData.whatWorked || scoreData.improve || scoreData.coachingTip) && (
+              <div className="coaching-breakdown">
+                {scoreData.whatWorked && (
+                  <p><strong>✅ What worked:</strong> {scoreData.whatWorked}</p>
+                )}
+                {scoreData.improve && (
+                  <p><strong>🎯 Fix next:</strong> {scoreData.improve}</p>
+                )}
+                {scoreData.coachingTip && (
+                  <p><strong>🗣 Try saying:</strong> {scoreData.coachingTip}</p>
+                )}
+              </div>
+            )}
           </div>
 
-          {isSpeaking && (
+          {isSpeaking ? (
             <>
               <div className="speaking-wave small">
                 <span /><span /><span /><span /><span />
               </div>
               <button className="btn-skip" onClick={handleSkip}>⏭ SKIP</button>
             </>
+          ) : (
+            <button className="btn-primary" onClick={handleRevealNext}>
+              {gradingIndex + 1 < currentRoundResponses.length ? "REVEAL NEXT SCORE →" : "SEE ROUND RESULTS →"}
+            </button>
           )}
         </div>
       )}
@@ -1298,6 +1489,21 @@ const CSS = `
   .scoring-icon { font-size: 80px; animation: spin 2s linear infinite; }
   @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   .scoring-text { font-family: 'Red Hat Display', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: 4px; color: var(--gold); }
+  .scoring-subject { font-size: 14px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; }
+
+  /* ── GRADING INTRO ── */
+  .grading-roster { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 540px; }
+  .grading-chip {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--dark3);
+  }
+
+  /* ── REVEAL PROGRESS ── */
+  .reveal-progress {
+    font-family: 'Red Hat Display', sans-serif; font-weight: 900; font-size: 12px;
+    letter-spacing: 3px; color: var(--gold); text-transform: uppercase;
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px;
+  }
   .scoring-dots { display: flex; gap: 8px; }
   .scoring-dots span {
     width: 10px; height: 10px; border-radius: 50%; background: var(--gold);
@@ -1322,6 +1528,54 @@ const CSS = `
     max-width: 540px; width: 100%; border-left: 4px solid var(--red);
   }
   .rex-says.coaching { border-left-color: var(--teal); }
+
+  .score-label-chip {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+
+  .subscores {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .subscore-row {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+  .subscore-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+  .subscore-name em {
+    font-style: normal;
+    opacity: 0.55;
+    font-weight: 400;
+    margin-left: 4px;
+  }
+
+  .coaching-breakdown {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .coaching-breakdown p { margin: 0; font-size: 0.9rem; line-height: 1.4; }
+  .coaching-breakdown strong { font-weight: 700; }
   .rex-badge {
     font-size: 11px; letter-spacing: 3px; color: var(--red); text-transform: uppercase;
     margin-bottom: 8px; font-weight: 700;

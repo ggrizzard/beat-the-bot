@@ -2,49 +2,69 @@ const REX_SYSTEM_PROMPT = `You are Rex — the most theatrical, over-the-top gam
 
 Your job is to score real estate agents on their objection-handling responses and deliver feedback in TWO distinct acts:
 
-ACT ONE — THE ROAST (2-3 sentences, max):
-This is your moment. Be theatrical, be sarcastic, be a little savage — but always punching UP, never cruel. Think of it like a standing ovation that suddenly turns into a pie in the face. If they did well, still find something to poke fun at. Examples of your voice:
-- "Ladies and gentlemen, what you just witnessed was... technically English. I'll give you that."
-- "Oh WOW. You really went for it. You really... went somewhere. I'm not sure WHERE, but you went."
-- "I've seen better recoveries on the Titanic, but hey — at least you got in the lifeboat!"
-- "I've had houseplants handle objections with more conviction. But you know what? The houseplant wasn't even trying."
-- "That answer had the energy of a DMV waiting room on a Tuesday. Technically present. Spiritually elsewhere."
-- If they did great: "STOP THE PRESSES! Someone call their mother! That was ALMOST perfect — I said ALMOST, don't get cocky!"
-- If they did great: "Well WELL well! Look who decided to show UP today! I am genuinely annoyed by how good that was."
+ACT ONE — THE ROAST (ONE sentence, max — punchy, then STOP):
+This is your moment, but keep it to a single zinger before the score. Be theatrical, be sarcastic, be a little savage — but always punching UP, never cruel. One line, land it, move on. Examples of your voice:
+- "Ladies and gentlemen, what you just witnessed was... technically English."
+- "You really went for it — I'm just not sure WHERE you went."
+- "I've seen better recoveries on the Titanic, but hey, you got in the lifeboat!"
+- "That answer had the energy of a DMV waiting room. Technically present, spiritually elsewhere."
+- If they did great: "STOP THE PRESSES — that was ALMOST perfect, don't get cocky!"
+- If they did great: "Well WELL well, look who decided to show UP today!"
 
-ACT TWO — THE COACHING (3-4 sentences):
-Drop the theatrics. Become a sharp, genuine coach. Be specific — reference what they actually said or didn't say. Tell them exactly what landed, what was missing, and ONE concrete thing to say differently next time. Always tie back to whether they achieved the stated objective.
+ACT TWO — THE COACHING (1-2 sentences, brief):
+Drop the theatrics and be a sharp coach. Reference what they actually said, and give ONE concrete thing to say differently next time, tied to the objective. Keep it short — one tip, not a lecture.
 
-SCORING:
-Give a score from 1-10 based on:
-- Did they achieve the stated objective? (40%)
-- Did they match the emotional tone — empathetic, non-confrontational, confident? (30%)
-- Did they use strategic language that positions them as an expert? (30%)
+SCORING (the 40/30/30 rubric — BE DISCRIMINATING):
+Judge HARD against the benchmark. The benchmark answer is a 9-10; most real answers are NOT benchmark-level. Grade THREE dimensions independently, each 1-10:
+- objective: Did they ACTUALLY achieve the stated objective (secure the consult, hold the price, earn the second chance)? Merely engaging is not achieving. (weight 40%)
+- tone: Empathetic, non-confrontational, confident — did they acknowledge before redirecting? (weight 30%)
+- language: Strategic, specific, expert positioning — or vague and generic? (weight 30%)
+
+Use the FULL 1-10 range and SPREAD scores. Do NOT cluster everyone at 5-7. Anchor each dimension:
+- 1-2: didn't engage, argued, or made it worse
+- 3-4: acknowledged but no real reframe; vague; missed the objective
+- 5-6: competent — acknowledged and redirected, but generic or thin on specifics and the close
+- 7-8: strong — clear acknowledge → reframe → educate, ties to the objective, asks for a next step
+- 9-10: benchmark-level — specific, persuasive, lands the objective with a clean close
+
+Reward specificity, data, and a concrete close; penalize filler, hedging, rambling, and very short answers (a one-liner caps around 3-4). Two responses should RARELY get the same overall score unless genuinely equal — differentiate them on the dimensions. Judge ONLY what the player actually said, not what they probably meant.
+
+Then compute the overall score as the weighted average, rounded to the nearest whole number:
+  score = round( objective * 0.4 + tone * 0.3 + language * 0.3 )
+
+Map the overall score to a label:
+  1-2 = "Needs Work", 3-4 = "Getting There", 5-6 = "Solid", 7-8 = "Strong", 9-10 = "Elite"
 
 RESPONSE FORMAT — return ONLY valid JSON, no markdown, no backticks:
 {
-  "score": <number 1-10>,
-  "roast": "<Act One — theatrical roast or compliment, 2-3 sentences, Rex voice>",
-  "coaching": "<Act Two — specific genuine coaching, 3-4 sentences, drop the act>",
-  "scoreLine": "<One punchy dramatic line Rex delivers when revealing the score — make it match the score emotionally. Low score = dramatic tragedy. High score = over-the-top celebration. Mid score = mock deliberation.>"
+  "score": <number 1-10, the weighted overall>,
+  "scoreLabel": "<Needs Work | Getting There | Solid | Strong | Elite>",
+  "subscores": {
+    "objective": <number 1-10>,
+    "tone": <number 1-10>,
+    "language": <number 1-10>
+  },
+  "roast": "<Act One — theatrical roast or compliment, ONE sentence, Rex voice>",
+  "scoreLine": "<One punchy dramatic line Rex delivers when revealing the score — match the score emotionally. Low = dramatic tragedy. High = over-the-top celebration. Mid = mock deliberation.>",
+  "coaching": "<Act Two — specific genuine coaching, 1-2 sentences, drop the act. This is the spoken beat.>",
+  "whatWorked": "<1-2 sentences on what the agent did well, specific to what they said>",
+  "improve": "<1 sentence on the single most important thing to fix, tied to the objective>",
+  "coachingTip": "<one short, concrete line they could actually say next time>"
 }`;
 
 // ── Per-pack Rex intro scripts ──────────────────────────────────────────────
 export const REX_PACK_INTROS = {
   1: [
-    `LADIES AND GENTLEMEN — welcome to the main event! Tonight's category is... CLASSIC BEAT THE BOT! The bread and butter. The meat and potatoes. The scenarios every single agent faces before their coffee gets cold. We've got buyers dodging consultations, sellers playing the neighbor comparison game, and the eternal question — WHY do I need YOU? Oh, this is going to be BEAUTIFUL. Contestants... the clock is ticking. Let the battle BEGIN!`,
+    `LADIES AND GENTLEMEN — tonight's category is SELLER OBJECTIONS! The neighbor who sold for more, the Zillow estimate, the "let's just list it high and see what happens." These sellers walk in with a number in their head and feelings in their heart. Your mission — anchor them to TODAY'S market without losing the listing or your dignity. Contestants, the clock is ticking. BEGIN!`,
   ],
   2: [
-    `Oh ho ho — now we're getting into the DEEP END! Tonight's category... EXPIRED LISTINGS! These are the sellers who already tried. They already trusted someone. And it did NOT go well. They are guarded. They are skeptical. They have heard every promise in the book and watched every single one of them fail to deliver. Your job — in the next sixty seconds — is to make them believe again. No pressure. Absolutely no pressure whatsoever. Contestants... this one sorts the professionals from the pretenders. BEGIN!`,
+    `Here we GO — the category is BUYER OBJECTIONS! "We'll wait for rates to drop." "The payment's too high." "Can't I just call the listing agent myself?" These buyers think they can sit it out — or skip you entirely. In sixty seconds, prove. Them. WRONG. Show me your value cannot be Googled. FIGHT!`,
   ],
   3: [
-    `DING DING DING — we are stepping into the ring for SELLER PRICING OBJECTIONS! Zillow said WHAT? The neighbor got HOW MUCH? I want to list WHERE? Listen — these sellers have numbers in their heads, feelings in their hearts, and absolutely no interest in hearing what the market actually says. Your mission — separate the emotion from the evidence without losing the listing or your dignity. Three of the most common pricing battles in real estate... and you're going in UNARMED except for your words. Let's see what you've got. FIGHT!`,
+    `Oh, this is the sneaky-hard one — LEAD CONVERSION! "Just send me the info." "So... how's the market?" The casual little question that every average agent fumbles straight into a dead end. Your job — turn idle curiosity into a consultation and a real relationship before that lead goes ice cold. Contestants, make it count. GO!`,
   ],
   4: [
-    `Oh this is my FAVORITE. Tonight's category — FOR SALE BY OWNER! They've got a sign in the yard. A Zillow listing with four photos and a blurry bathroom. And the unshakeable confidence of someone who once watched an HGTV flip show. They do not think they need you. They are CERTAIN they do not need you. Your job is to walk into that conviction — smile on your face — and dismantle it brick by brick without bruising the ego that built it. This... is high art. Contestants — SHOW ME what you've got!`,
-  ],
-  5: [
-    `And we close out with BUYER OBJECTIONS — the classic I'm just looking, I don't want to sign anything, and the fan favorite — can't I just go straight to the listing agent? These buyers think representation is optional. They think you're a door opener with a license. They think the internet has made you obsolete. Today you will prove. Them. WRONG. In three rounds, three objections, and three chances to show that your value cannot be Googled. Contestants — the mic is yours. Don't waste it!`,
+    `My FAVORITE — FSBO AND EXPIRED! On one side, the do-it-yourselfer with a yard sign and the unshakeable confidence of someone who watched ONE HGTV flip. On the other, the seller the last agent already let down. Yard-sign ego meets second-chance skepticism. Walk in, win them over, prove your worth. This is high art, people. SHOW ME!`,
   ],
 };
 
@@ -92,7 +112,43 @@ export function getRexTiebreaker() {
 
 export function getRexPlayerIntro(players) {
   const names = players.map((p) => p.name);
-  return `LADIES AND GENTLEMEN — welcome to BEAT THE BOT, the only real estate training experience with this much drama and this little mercy! Tonight's competitors stepping into the arena are... ${names[0]}... ${names[1]}... ${names[2]}... ${names[3]}... and ${names[4]}! Five agents. Four rounds. One champion. May the sharpest tongue — and the warmest empathy — WIN! Let's get this show on the ROAD!`;
+  let nameList;
+  if (names.length === 1) {
+    nameList = names[0];
+  } else if (names.length === 2) {
+    nameList = `${names[0]}, and ${names[1]}`;
+  } else {
+    nameList = `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+  }
+  const agentWord = names.length === 1 ? "agent" : "agents";
+  return `LADIES AND GENTLEMEN — give it UP for tonight's competitors: ${nameList}! That's right — ${nameList}, stepping into the arena! ${names.length} ${agentWord}, one champion, and zero mercy. Welcome to BEAT THE BOT! And here's the twist — EVERYONE answers blind. No peeking, no borrowing, no going last and stealing the good lines. You all swing, THEN we grade. May the sharpest tongue — and the warmest empathy — WIN! Let's get this show on the ROAD!`;
+}
+
+// ── Quick, non-evaluative handoff quips (collection phase) ───────────────────
+// Played right after an agent finishes recording, before the next steps up.
+// Deliberately reveals NOTHING about quality — scores are graded later, blind.
+const REX_HANDOFF_QUIPS = [
+  (name) => `Locked in, ${name}! Next up!`,
+  (name) => `Thank you, ${name} — pass the mic!`,
+  (name) => `That's a wrap on ${name}. Who's next?`,
+  (name) => `Sealed and saved, ${name}. NEXT!`,
+  (name) => `Nice swing, ${name} — next contestant, GO!`,
+];
+
+export function getRexHandoffQuip(playerName) {
+  const line = REX_HANDOFF_QUIPS[Math.floor(Math.random() * REX_HANDOFF_QUIPS.length)];
+  return line(playerName);
+}
+
+// ── Grading-phase kickoff (all responses collected, time to score) ───────────
+const REX_GRADING_INTRO_LINES = [
+  `Pencils DOWN! Every answer is IN, locked, and recorded — and not a single one of you got to cheat off the agent before you. Now comes the moment of truth. One by one, we GRADE. Let the reckoning... BEGIN!`,
+  `That's everybody! Responses sealed, egos intact — for now. Time to pull back the curtain and see who actually brought it. Grading starts NOW — brace yourselves!`,
+  `The arena has spoken — ALL of you, blind, no advantages, no eavesdropping. Beautiful. Now I get to do my FAVORITE part. Let's grade these one at a time. Here. We. GO!`,
+];
+
+export function getRexGradingIntro() {
+  return REX_GRADING_INTRO_LINES[Math.floor(Math.random() * REX_GRADING_INTRO_LINES.length)];
 }
 
 // ── Scoring engine ───────────────────────────────────────────────────────────
@@ -105,54 +161,42 @@ export async function scoreResponse({
   playerResponse,
   packName,
 }) {
-  const apiKey = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
-
-  const userPrompt = `
-GAME PACK: ${packName}
-PERSONA: ${persona}
-OBJECTION: "${objection}"
-OBJECTIVE: ${objective}
-BENCHMARK RESPONSE: "${benchmark}"
-PLAYER NAME: ${playerName}
-PLAYER RESPONSE: "${playerResponse}"
-
-Score ${playerName}'s response. Remember — roast first (theatrical Rex voice), then coach (specific and genuine). Return only valid JSON.`;
-
+  // Scoring runs through our own serverless function (/api/score), which holds
+  // the Anthropic key server-side. The key is NEVER shipped to the browser.
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/score", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: REX_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName, objection, persona, objective, benchmark, playerResponse, packName }),
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      console.error("Anthropic API error:", err);
-      throw new Error(`API returned ${response.status}`);
+      const detail = await response.text().catch(() => "");
+      console.error("Scoring API error:", response.status, detail);
+      throw new Error(`Scoring API ${response.status}`);
     }
 
-    const data = await response.json();
-    const text = data.content?.[0]?.text || "{}";
-    const clean = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(clean);
+    const result = await response.json();
+    if (typeof result?.score !== "number") {
+      console.error("Scoring API returned unexpected shape:", result);
+      throw new Error("Bad scoring payload");
+    }
+    return result;
 
   } catch (err) {
     console.error("Scoring error:", err);
+    // Clearly-flagged technical fallback so a real outage is never mistaken for
+    // a genuine score. The game can still continue if this ever fires.
     return {
-      score: 5,
-      roast: "Well... that happened. The judges are conferring. And conferring. They've ordered lunch. Still conferring.",
-      coaching: "Lead with empathy, pivot to strategy, and always tie your response back to the objective. The benchmark shows you exactly what landing looks like — study it.",
-      scoreLine: "A diplomatic FIVE — right down the middle, just like that answer.",
+      score: 0,
+      scoreLabel: "Not Scored",
+      subscores: { objective: 0, tone: 0, language: 0 },
+      roast: "TECHNICAL TIMEOUT, folks — the judges' scorecards just jammed! That's on the machine, not the contestant.",
+      scoreLine: "No score this round — Rex's scoring booth hit a snag. Try that one again!",
+      coaching: "Scoring is temporarily unavailable (the AI judge couldn't be reached). Check the scoring service and re-run this round — your answer was not graded.",
+      whatWorked: "Not evaluated — scoring service was unreachable.",
+      improve: "Not evaluated — re-run once scoring is restored.",
+      coachingTip: "If this keeps happening, confirm the ANTHROPIC_API_KEY is set on the server.",
     };
   }
 }
