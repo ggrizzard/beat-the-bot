@@ -8,7 +8,7 @@ const API_KEY = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
 // ─── PLAYER COUNT ────────────────────────────────────────────────────────────
 // Number of competing agents. Set to 2 while building/testing; bump back to 5
 // (the full main-stage roster) once everything is finalized.
-const PLAYER_COUNT = 2;
+const PLAYER_COUNT = 5;
 
 const makePlayers = (n) => Array.from({ length: n }, (_, i) => ({ id: i, name: "" }));
 const makeScores = (n) => Array.from({ length: n }, () => 0);
@@ -544,7 +544,7 @@ export default function App() {
     const nextRound = currentRound + 1;
     setCurrentRound(nextRound);
 
-    if (nextRound >= 4) {
+    if (nextRound >= 3) {
       // Game over
       const maxScore = Math.max(...scores);
       const winnerIdx = scores.indexOf(maxScore);
@@ -788,7 +788,7 @@ export default function App() {
           <h2 className="screen-title">
             {currentRound === 0 ? "PICK YOUR BATTLEFIELD" : `🏆 ${players[currentPlayerOrder[0]?.id]?.name || ""} WON — PICK YOUR BATTLEFIELD`}
           </h2>
-          <p className="screen-sub">Round {currentRound + 1} of 4</p>
+          <p className="screen-sub">Round {currentRound + 1} of 3</p>
           <div className="pack-grid">
             {GAME_PACKS.map((pack) => {
               const allUsed = pack.rounds.every((r) => usedRounds.has(r.id));
@@ -1094,7 +1094,7 @@ export default function App() {
             ))}
           </div>
 
-          {currentRound < 4 && (
+          {currentRound < 3 && (
             <button className="btn-primary" onClick={handleContinueToNextCategory} disabled={isSpeaking}>
               NEXT ROUND →
             </button>

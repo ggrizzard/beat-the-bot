@@ -1,5 +1,13 @@
 # Beat The Bot — Changelog & Ops Notes
 
+## 2026-06-17 (event config) — 5 contestants, 3 rounds
+
+- `PLAYER_COUNT = 5` in `src/App.jsx`.
+- Game runs **3 rounds**: `endRound` ends at `nextRound >= 3`; "Round X of 3"
+  sub and the NEXT ROUND button guard (`currentRound < 3`) updated to match.
+- Rex now announces each contestant **by name** before the roast/score/coaching
+  (`${resp.playerName}...` prefix in `gradeOne`).
+
 ## 2026-06-17 (later) — scoring live + game polish
 
 ### Scoring is live
