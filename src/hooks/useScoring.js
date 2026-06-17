@@ -163,6 +163,21 @@ export function getRexGradingFiller() {
   return REX_GRADING_FILLER_LINES[Math.floor(Math.random() * REX_GRADING_FILLER_LINES.length)];
 }
 
+// Live improv — asks the model for a fresh Rex stall line during the scoring
+// break. Throws on failure so the caller can fall back to a canned filler.
+export async function getRexBanter({ players = [], packName = "" } = {}) {
+  const response = await fetch("/api/score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "banter", players, packName }),
+  });
+  if (!response.ok) throw new Error(`Banter API ${response.status}`);
+  const data = await response.json();
+  const line = (data && data.line ? String(data.line) : "").trim();
+  if (!line) throw new Error("Empty banter line");
+  return line;
+}
+
 // ── Scoring engine ───────────────────────────────────────────────────────────
 export async function scoreResponse({
   playerName,

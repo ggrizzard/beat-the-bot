@@ -84,6 +84,37 @@ export default async function handler(req, res) {
       packName = "",
     } = body;
 
+    // Improv banter mode — a fresh, fun Rex stall line to fill the scoring break.
+    if (body.mode === "banter") {
+      const names = Array.isArray(body.players) ? body.players.filter(Boolean).join(", ") : "";
+      const banterSystem = `You are Rex — the over-the-top, theatrical game-show host of "Beat the Bot," a real estate objection-handling competition for ERA Grizzard agents. Improvise ONE short stall to fill time while the AI tallies the scores. 2-4 sentences, high energy, PG, genuinely funny and a little savage but never cruel. Make it FRESH every time — riff on the tension, the contestants, real estate life, the AI judges "deliberating," or a warm shout-out to ERA Grizzard and their leader Gus (don't force Gus in every time). Never reveal or hint at any score. Return ONLY the spoken line as plain text — no quotes, no JSON, no stage directions.`;
+      const banterUser = `Category just played: ${packName || "real estate objections"}.${names ? ` Contestants: ${names}.` : ""} Improvise your stall line now while the scores come in.`;
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: process.env.SCORING_MODEL || "claude-sonnet-4-6",
+          max_tokens: 250,
+          temperature: 1,
+          system: banterSystem,
+          messages: [{ role: "user", content: banterUser }],
+        }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        res.status(502).json({ error: `Anthropic ${r.status}`, detail: detail.slice(0, 300) });
+        return;
+      }
+      const d = await r.json();
+      const line = (d?.content?.[0]?.text || "").trim();
+      if (!line) {
+        res.status(502).json({ error: "Empty banter" });
+        return;
+      }
+      res.status(200).json({ line });
+      return;
+    }
+
     const isBatch = Array.isArray(body.responses) && body.responses.length > 0;
 
     let system = REX_SYSTEM_PROMPT;

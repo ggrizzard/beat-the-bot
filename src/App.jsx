@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { GAME_PACKS } from "./data/gamePacks";
 import { speakText, stopSpeaking, transcribeAudio, REX_VOICE_ID, COACH_VOICE_ID, CHALLENGER_VOICE_IDS } from "./hooks/useElevenLabs";
-import { scoreResponse, scoreRound, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro, getRexGradingFiller } from "./hooks/useScoring";
+import { scoreResponse, scoreRound, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro, getRexGradingFiller, getRexBanter } from "./hooks/useScoring";
 
 const API_KEY = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
 
@@ -454,8 +454,16 @@ export default function App() {
       return null;
     });
 
+    // Improv filler for the scoring break: generate a fresh Rex line in the
+    // background (overlaps the wait), fall back to a canned shout-out if it fails.
+    const banterPromise = getRexBanter({
+      players: responses.map((r) => r.playerName),
+      packName: pack.name,
+    }).catch(() => null);
+
     await speak(getRexGradingIntro(), "rex");
-    await speak(getRexGradingFiller(), "rex");
+    const banter = (await banterPromise) || getRexGradingFiller();
+    await speak(banter, "rex");
 
     const batch = await batchPromise;
     setRoundScored(batch);

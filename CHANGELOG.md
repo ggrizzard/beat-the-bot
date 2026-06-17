@@ -1,5 +1,36 @@
 # Beat The Bot — Changelog & Ops Notes
 
+## 2026-06-17 (later) — scoring live + game polish
+
+### Scoring is live
+- The 401s were a stale/bad key value; the 404 was a bad model id. This account
+  does **not** have `claude-sonnet-4-20250514`. Working model: **`claude-sonnet-4-6`**
+  (now the code default in `api/score.js`; `SCORING_MODEL` still overrides).
+- Set the key cleanly from the terminal to avoid paste errors:
+  `printf %s "$KEY" | vercel env add ANTHROPIC_API_KEY production` → `vercel --prod`.
+- Verify: `curl .../api/score` → JSON with a real `score`. `401` = bad key,
+  `404`/not_found = bad model (`GET /v1/models` lists what the account can use).
+
+### Comparative (head-to-head) scoring — fixes score clustering
+- A round's answers are now graded **together in one `/api/score` call**: send
+  `{responses:[{playerName, playerResponse}, ...], objection, persona, objective, benchmark, packName}`,
+  get back `{results:[...]}` in the same order. The model is required to give
+  distinct, spread-out scores with a clear winner (no ties).
+- Client: `scoreRound()` in `src/hooks/useScoring.js`; called once from
+  `startGrading` in `App.jsx`, then `gradeOne` reveals from the precomputed
+  array. Falls back to per-answer `scoreResponse` if the batch call fails.
+
+### Game-flow polish
+- **Shorter Rex transitions** — player intro, the four pack intros, grading
+  intro, and round-winner lines trimmed to one line each (keeps a 5-contestant
+  game moving). The roast / score line / coaching judgment is unchanged.
+- **Full coaching read aloud** — removed the `abbreviateCoaching` cap so Rex
+  reads the entire `coaching` paragraph (not the on-screen emoji bullets).
+- **Grading-time banter** — `getRexGradingFiller()` has Rex deliver a fun
+  ERA Grizzard / Gus shout-out while scoring runs in the background (the
+  scoring promise is kicked off first so the banter overlaps the wait). An
+  earlier "game-show music" idea was removed in favor of this.
+
 ## 2026-06-17 — pre-Refuel overhaul (commit 5bde5c7)
 
 ### Gameplay & content
