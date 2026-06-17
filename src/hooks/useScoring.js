@@ -128,16 +128,16 @@ export function getRexPlayerIntro(players) {
 // Played right after an agent finishes recording, before the next steps up.
 // Deliberately reveals NOTHING about quality — scores are graded later, blind.
 const REX_HANDOFF_QUIPS = [
-  (name) => `Locked in, ${name}! Next up!`,
-  (name) => `Thank you, ${name} — pass the mic!`,
-  (name) => `That's a wrap on ${name}. Who's next?`,
-  (name) => `Sealed and saved, ${name}. NEXT!`,
-  (name) => `Nice swing, ${name} — next contestant, GO!`,
+  (prev, next) => `Locked in, ${prev}! ${next}, you're UP — get to that mic!`,
+  (prev, next) => `Thank you, ${prev} — pass the mic! ${next}, the arena is YOURS!`,
+  (prev, next) => `That's a wrap on ${prev}. ${next}, step on up — let's see what you've got!`,
+  (prev, next) => `Sealed and saved, ${prev}. ${next}, you're next in the hot seat!`,
+  (prev, next) => `Nice swing, ${prev}! Up next... ${next} — don't keep us waiting!`,
 ];
 
-export function getRexHandoffQuip(playerName) {
+export function getRexHandoffQuip(prevName, nextName) {
   const line = REX_HANDOFF_QUIPS[Math.floor(Math.random() * REX_HANDOFF_QUIPS.length)];
-  return line(playerName);
+  return line(prevName, nextName || "next contestant");
 }
 
 // ── Grading-phase kickoff (all responses collected, time to score) ───────────

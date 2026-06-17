@@ -414,11 +414,12 @@ export default function App() {
 
     // More agents still to record this round?
     if (currentPlayerIndex + 1 < currentPlayerOrder.length) {
+      const nextPlayer = currentPlayerOrder[currentPlayerIndex + 1];
       setCurrentPlayerIndex((i) => i + 1);
       setPhase(PHASE.PLAYER_HANDOFF);
-      // Quick, non-evaluative Rex quip — keeps the energy up without leaking
-      // anything about how the agent did (scores come later, blind).
-      await speak(getRexHandoffQuip(player.name), "rex");
+      // Quick, non-evaluative Rex quip — thanks the agent who just went AND
+      // calls the next contestant up by name. Reveals nothing about scores.
+      await speak(getRexHandoffQuip(player.name, nextPlayer?.name), "rex");
     } else {
       // Everyone has answered — time to grade, one at a time.
       await startGrading(updatedResponses);
