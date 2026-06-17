@@ -26,10 +26,14 @@
   game moving). The roast / score line / coaching judgment is unchanged.
 - **Full coaching read aloud** — removed the `abbreviateCoaching` cap so Rex
   reads the entire `coaching` paragraph (not the on-screen emoji bullets).
-- **Grading-time banter** — `getRexGradingFiller()` has Rex deliver a fun
-  ERA Grizzard / Gus shout-out while scoring runs in the background (the
-  scoring promise is kicked off first so the banter overlaps the wait). An
-  earlier "game-show music" idea was removed in favor of this.
+- **Grading-time banter → live improv** — `getRexBanter()` calls `/api/score`
+  with `mode:"banter"` (temperature 1, sends contestant names + category) so Rex
+  **improvises a fresh stall line every scoring break** — never the same twice,
+  with occasional ERA Grizzard / Gus shout-outs. Generated in the background
+  during the grading intro so it overlaps the wait. `getRexGradingFiller()`
+  (canned lines) is the fallback if the improv call fails. To constrain it
+  (always mention Gus, cap length, ban a topic), edit `banterSystem` in
+  `api/score.js`. An earlier "game-show music" idea was removed in favor of this.
 
 ## 2026-06-17 — pre-Refuel overhaul (commit 5bde5c7)
 

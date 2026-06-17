@@ -511,9 +511,9 @@ export default function App() {
       return next;
     });
 
-    // Rex roasts + reveals the score, then reads the FULL coaching paragraph
-    // (just `coaching` — not the on-screen whatWorked/improve/tip bullets).
-    await speak(`${result.roast} ${result.scoreLine}`, "rex");
+    // Rex announces the contestant BY NAME, then the roast + score line, then
+    // reads the FULL coaching paragraph (just `coaching` — not the emoji bullets).
+    await speak(`${resp.playerName}... ${result.roast} ${result.scoreLine}`, "rex");
     await speak(result.coaching, "coach");
   };
 
