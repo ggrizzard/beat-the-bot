@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { GAME_PACKS } from "./data/gamePacks";
 import { speakText, stopSpeaking, transcribeAudio, REX_VOICE_ID, COACH_VOICE_ID, CHALLENGER_VOICE_IDS } from "./hooks/useElevenLabs";
-import { scoreResponse, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro } from "./hooks/useScoring";
+import { scoreResponse, scoreRound, getRexPackIntro, getRexPlayerIntro, getRexRoundWinner, getRexChampion, getRexTiebreaker, getRexHandoffQuip, getRexGradingIntro } from "./hooks/useScoring";
 
 const API_KEY = import.meta.env.VITE_BTB_KEY || window.__BTB_KEY__ || "";
 
@@ -156,6 +156,7 @@ export default function App() {
   const [currentRoundResponses, setCurrentRoundResponses] = useState([]); // collected blind: [{playerId,playerName,transcript}]
   const [gradingIndex, setGradingIndex] = useState(0); // which collected response is being graded/revealed
   const [currentRoundResults, setCurrentRoundResults] = useState([]);
+  const [roundScored, setRoundScored] = useState(null); // precomputed comparative results for the round
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -431,14 +432,36 @@ export default function App() {
     setCurrentRoundResults([]);
     setGradingIndex(0);
     setScoreData(null);
+    setRoundScored(null);
     setPhase(PHASE.GRADING_INTRO);
     await speak(getRexGradingIntro(), "rex");
-    await gradeOne(0, responses);
+
+    // Comparative pass: score every answer together so the model spreads the
+    // scores and crowns a clear winner (no ties). gradeOne falls back to
+    // per-answer scoring if this fails.
+    const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
+    const round = pack.rounds[selectedRoundIndex];
+    let batch = null;
+    try {
+      batch = await scoreRound({
+        responses: responses.map((r) => ({ playerName: r.playerName, playerResponse: r.transcript })),
+        objection: round.objection,
+        persona: round.persona,
+        objective: round.objective,
+        benchmark: round.benchmark,
+        packName: pack.name,
+      });
+    } catch (e) {
+      console.error("Comparative scoring failed; falling back to per-answer:", e);
+      batch = null;
+    }
+    setRoundScored(batch);
+    await gradeOne(0, responses, batch);
   };
 
   // Score + reveal a single stored response. Advancing to the next reveal is
   // operator-controlled (handleRevealNext) so pacing stays in your hands.
-  const gradeOne = async (index, responses) => {
+  const gradeOne = async (index, responses, batchArg) => {
     const pack = GAME_PACKS.find((p) => p.id === selectedPackId);
     const round = pack.rounds[selectedRoundIndex];
     const resp = responses[index];
@@ -447,15 +470,21 @@ export default function App() {
     setScoreData(null);
     setPhase(PHASE.SCORING);
 
-    const result = await scoreResponse({
-      playerName: resp.playerName,
-      objection: round.objection,
-      persona: round.persona,
-      objective: round.objective,
-      benchmark: round.benchmark,
-      playerResponse: resp.transcript,
-      packName: pack.name,
-    });
+    // Use the precomputed comparative result when we have one; otherwise score
+    // this single answer on its own (fallback).
+    const batch = batchArg !== undefined ? batchArg : roundScored;
+    let result = batch && batch[index];
+    if (!result || typeof result.score !== "number") {
+      result = await scoreResponse({
+        playerName: resp.playerName,
+        objection: round.objection,
+        persona: round.persona,
+        objective: round.objective,
+        benchmark: round.benchmark,
+        playerResponse: resp.transcript,
+        packName: pack.name,
+      });
+    }
 
     setScoreData(result);
     setPhase(PHASE.SCORE_REVEAL);

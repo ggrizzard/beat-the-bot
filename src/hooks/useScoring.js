@@ -55,25 +55,25 @@ RESPONSE FORMAT — return ONLY valid JSON, no markdown, no backticks:
 // ── Per-pack Rex intro scripts ──────────────────────────────────────────────
 export const REX_PACK_INTROS = {
   1: [
-    `LADIES AND GENTLEMEN — tonight's category is SELLER OBJECTIONS! The neighbor who sold for more, the Zillow estimate, the "let's just list it high and see what happens." These sellers walk in with a number in their head and feelings in their heart. Your mission — anchor them to TODAY'S market without losing the listing or your dignity. Contestants, the clock is ticking. BEGIN!`,
+    `SELLER OBJECTIONS! The neighbor who sold for more, the Zillow estimate, "let's list it high." Anchor them to today's market without losing the listing. Go!`,
   ],
   2: [
-    `Here we GO — the category is BUYER OBJECTIONS! "We'll wait for rates to drop." "The payment's too high." "Can't I just call the listing agent myself?" These buyers think they can sit it out — or skip you entirely. In sixty seconds, prove. Them. WRONG. Show me your value cannot be Googled. FIGHT!`,
+    `BUYER OBJECTIONS! "We'll wait for rates," "the payment's too high," "I'll just call the listing agent." Prove your value can't be Googled. Go!`,
   ],
   3: [
-    `Oh, this is the sneaky-hard one — LEAD CONVERSION! "Just send me the info." "So... how's the market?" The casual little question that every average agent fumbles straight into a dead end. Your job — turn idle curiosity into a consultation and a real relationship before that lead goes ice cold. Contestants, make it count. GO!`,
+    `LEAD CONVERSION! "Just send me the info." "How's the market?" Turn a casual question into a consultation before the lead goes cold. Go!`,
   ],
   4: [
-    `My FAVORITE — FSBO AND EXPIRED! On one side, the do-it-yourselfer with a yard sign and the unshakeable confidence of someone who watched ONE HGTV flip. On the other, the seller the last agent already let down. Yard-sign ego meets second-chance skepticism. Walk in, win them over, prove your worth. This is high art, people. SHOW ME!`,
+    `FSBO AND EXPIRED! The yard-sign do-it-yourselfer and the seller the last agent let down. Win them over and prove your worth. Go!`,
   ],
 };
 
 // ── Round winner lines ──────────────────────────────────────────────────────
 export const REX_ROUND_WINNER_LINES = [
-  (name, score) => `The scorecards are IN and the winner of this round with a ${score} is... ${name}! Step forward, CHAMPION! The next category is yours to choose — choose wisely, choose boldly, choose like someone who just won something!`,
-  (name, score) => `${score} points! ${name} takes the round! And honestly? I did NOT see that coming. The comeback. The composure. The category pick is ALL YOURS — don't blow it!`,
-  (name, score) => `Round goes to ${name} — ${score} on the board! Someone is FEELING themselves right now and they have EARNED it! Get up here and pick the next battlefield!`,
-  (name, score) => `Ladies and gentlemen... ${name}. ${score} points. Cold. Calculated. Correct. The category selection is yours — this is your moment of POWER. Use it!`,
+  (name, score) => `${score} points — ${name} takes the round! You pick the next battlefield.`,
+  (name, score) => `Round goes to ${name} with ${score}! Your call on the next category.`,
+  (name, score) => `${name}, ${score} — that's the round. Choose our next battlefield.`,
+  (name, score) => `Winner's ${name} with ${score}! You're up to pick what's next.`,
 ];
 
 // ── Game over champion lines ─────────────────────────────────────────────────
@@ -121,7 +121,7 @@ export function getRexPlayerIntro(players) {
     nameList = `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
   }
   const agentWord = names.length === 1 ? "agent" : "agents";
-  return `LADIES AND GENTLEMEN — give it UP for tonight's competitors: ${nameList}! That's right — ${nameList}, stepping into the arena! ${names.length} ${agentWord}, one champion, and zero mercy. Welcome to BEAT THE BOT! And here's the twist — EVERYONE answers blind. No peeking, no borrowing, no going last and stealing the good lines. You all swing, THEN we grade. May the sharpest tongue — and the warmest empathy — WIN! Let's get this show on the ROAD!`;
+  return `Welcome to BEAT THE BOT — give it up for tonight's competitors: ${nameList}! ${names.length} ${agentWord}, one champion. Everyone answers blind, then we grade. Let's GO!`;
 }
 
 // ── Quick, non-evaluative handoff quips (collection phase) ───────────────────
@@ -142,9 +142,9 @@ export function getRexHandoffQuip(prevName, nextName) {
 
 // ── Grading-phase kickoff (all responses collected, time to score) ───────────
 const REX_GRADING_INTRO_LINES = [
-  `Pencils DOWN! Every answer is IN, locked, and recorded — and not a single one of you got to cheat off the agent before you. Now comes the moment of truth. One by one, we GRADE. Let the reckoning... BEGIN!`,
-  `That's everybody! Responses sealed, egos intact — for now. Time to pull back the curtain and see who actually brought it. Grading starts NOW — brace yourselves!`,
-  `The arena has spoken — ALL of you, blind, no advantages, no eavesdropping. Beautiful. Now I get to do my FAVORITE part. Let's grade these one at a time. Here. We. GO!`,
+  `Pencils down — every answer's in. Let's grade.`,
+  `That's everybody. Time to see who actually brought it. Grading now!`,
+  `All locked in, all blind. Let's score these one at a time.`,
 ];
 
 export function getRexGradingIntro() {
@@ -199,4 +199,29 @@ export async function scoreResponse({
       coachingTip: "If this keeps happening, confirm the ANTHROPIC_API_KEY is set on the server.",
     };
   }
+}
+
+// Comparative scoring — grade an entire round's answers in ONE pass so the
+// model spreads the scores and produces a clear winner (no ties). Returns an
+// array of result objects in the same order as `responses`. Throws on failure
+// so the caller can fall back to per-answer scoring.
+export async function scoreRound({ responses, objection, persona, objective, benchmark, packName }) {
+  const response = await fetch("/api/score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ responses, objection, persona, objective, benchmark, packName }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Round scoring API ${response.status} ${detail}`);
+  }
+  const data = await response.json();
+  const results = Array.isArray(data) ? data : data?.results;
+  if (!Array.isArray(results) || results.length !== responses.length) {
+    throw new Error("Round scoring returned wrong shape");
+  }
+  if (!results.every((r) => r && typeof r.score === "number")) {
+    throw new Error("Round scoring missing numeric scores");
+  }
+  return results;
 }

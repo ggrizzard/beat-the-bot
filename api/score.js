@@ -77,16 +77,33 @@ export default async function handler(req, res) {
     const body =
       typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
     const {
-      playerName = "",
       objection = "",
       persona = "",
       objective = "",
       benchmark = "",
-      playerResponse = "",
       packName = "",
     } = body;
 
-    const userPrompt = `
+    const isBatch = Array.isArray(body.responses) && body.responses.length > 0;
+
+    let system = REX_SYSTEM_PROMPT;
+    let userPrompt;
+    let maxTokens;
+
+    if (isBatch) {
+      // Head-to-head: score every contestant in one pass so scores spread and
+      // there is a clear winner with no ties.
+      system =
+        REX_SYSTEM_PROMPT +
+        `\n\nCOMPETITION MODE — you are scoring MULTIPLE contestants who all answered the SAME objection, head to head. Apply the rubric to each, but this is a contest with ONE winner:\n- The overall \`score\` values MUST all be DIFFERENT integers — absolutely no ties.\n- SPREAD them so the ranking is unmistakable: the clearly best answer earns the top score; weaker answers drop well below. Use a wide span (e.g., for three answers 8/5/3, not 6/6/5).\n- Judge each answer against the others AND the benchmark. Reward specificity, a real reframe, and a concrete close; punish vague, generic, or short answers hard.\nReturn ONLY valid JSON: {"results":[ <one object per contestant, in the SAME ORDER given, each in the exact single-response format> ]}.`;
+      const list = body.responses
+        .map((r, i) => `CONTESTANT ${i + 1} — ${r.playerName}:\n"${r.playerResponse}"`)
+        .join("\n\n");
+      userPrompt = `GAME PACK: ${packName}\nPERSONA: ${persona}\nOBJECTION: "${objection}"\nOBJECTIVE: ${objective}\nBENCHMARK RESPONSE: "${benchmark}"\n\nScore every contestant below head-to-head. Distinct, spread-out scores — one clear winner, no ties.\n\n${list}\n\nReturn {"results":[ ... ]} with one object per contestant, same order.`;
+      maxTokens = Math.min(4096, 500 * body.responses.length + 400);
+    } else {
+      const { playerName = "", playerResponse = "" } = body;
+      userPrompt = `
 GAME PACK: ${packName}
 PERSONA: ${persona}
 OBJECTION: "${objection}"
@@ -96,6 +113,8 @@ PLAYER NAME: ${playerName}
 PLAYER RESPONSE: "${playerResponse}"
 
 Score ${playerName}'s response. Grade the three dimensions (objective/tone/language), compute the weighted overall, then roast first (theatrical Rex voice) and coach second (specific and genuine). Return only valid JSON.`;
+      maxTokens = 1000;
+    }
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -106,8 +125,8 @@ Score ${playerName}'s response. Grade the three dimensions (objective/tone/langu
       },
       body: JSON.stringify({
         model: process.env.SCORING_MODEL || "claude-sonnet-4-6",
-        max_tokens: 1000,
-        system: REX_SYSTEM_PROMPT,
+        max_tokens: maxTokens,
+        system,
         messages: [{ role: "user", content: userPrompt }],
       }),
     });
