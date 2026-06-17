@@ -1,5 +1,18 @@
 # Beat The Bot — Changelog & Ops Notes
 
+## 2026-06-17 (scoring calibration)
+
+- Recalibrated the live rubric in `api/score.js` — these are judged as **live,
+  spoken** answers. Removed the "benchmark is a 9-10 most won't clear" framing
+  that was capping scores at ~6-7.
+- New bands: **7-8 = solid (normal landing), 8-9 = excellent.** Strong answers
+  are no longer capped at 7.
+- **Hard ceiling of 9 — never award a 10** (overall or any sub-dimension).
+- Head-to-head pass anchors at the TOP and steps down (e.g., 9/7/5) so it spreads
+  for a clear winner without dragging everyone into the low end.
+- Tune scoring ONLY in `api/score.js` (`REX_SYSTEM_PROMPT` + COMPETITION-MODE
+  addendum); the `src/hooks/useScoring.js` copy is unused.
+
 ## 2026-06-17 (event config) — 5 contestants, 3 rounds
 
 - `PLAYER_COUNT = 5` in `src/App.jsx`.
